@@ -1,0 +1,166 @@
+library("tidyverse")
+library("magrittr")
+library("here")
+library("janitor")
+library("readxl")
+library("lindia")
+
+trees2 <- trees %>%
+  mutate(Diameter = Girth) %>%
+  select(Height,Diameter,Volume)
+
+
+trees2 %>%
+  ggplot(mapping = aes(x = Height, y = Diameter)) +
+  geom_point()+
+  labs(x = "Height in feet", y = "Diameter in inches") +
+  ggtitle("Height and diameter of black cherry trees") +
+  theme_classic()
+
+#Random line  
+trees2 %>%
+  ggplot(mapping = aes(x = Height, y = Diameter)) +
+  geom_point()+
+  labs(x = "Height in feet", y = "Diameter in inches") +
+  ggtitle("Height and diameter of black cherry trees") +
+  geom_abline(aes(intercept = -5.5, slope = 0.25), col = 2) +
+  theme_classic()
+
+#plot standard distribution
+ggplot(
+  data.frame(x=seq(-10,10,0.01),
+             density = dnorm(seq(-10,10,0.01),
+                             m=0,sd=1)), 
+  aes(x,density))+
+  geom_line()+
+  labs(x = "x", y = "Density") +
+  ggtitle("Standard Gaussian Distribution") +
+  theme_classic()
+
+ggplot(
+  data.frame(x = seq(-10,10,0.01),density = dnorm(seq(-10,10,0.01),m = 5, sd = 1
+  )),aes(x,density))+
+  geom_line()+
+  labs(x = "x", y = "Density") +
+  ggtitle("Gaussian Distribution with m = 5, sd = 1") +
+  theme_classic()
+
+ggplot(
+  data.frame(x = seq(-10,10,0.01),
+             density = dnorm(seq(-10,10,0.01),
+                             m = 0,
+                             sd = 5)),
+  aes(x,density)) +
+  geom_line() +
+  labs(x = "x", y = "Density") +
+  ggtitle("Gaussian Distribution with m = 0, sd = 5") +
+  theme_classic()
+
+#fitting the model 
+
+linmod1 <- lm( Diameter ~ Height, data = trees2)
+linmod1
+summary(linmod1)
+
+linmod1$coefficients
+
+trees2 %>% ggplot(aes( Height, Diameter)) +
+  geom_point() +
+  geom_abline(aes(intercept = -6.1883945, slope= 0.2557471), colour = "red") +
+  labs(x = "Height in feet", y = "Diameter in inches") +
+  ggtitle("Height and diameter of black cherry trees") +
+  theme_classic()
+
+# using ggplot to add linear model 
+trees2 %>% ggplot(aes(Height, Diameter))+
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, colour = "red") +
+  labs(x = "Height in feet", y = "Diameter in inches") +
+  ggtitle("Height and diameter of black cherry trees") +
+  theme_classic()
+
+#summary and prediction with the model 
+
+predict(linmod1, data.frame(Height = 80))
+
+#trees with height 80 foot in the data set
+trees2[trees2$Height == 80,]$Diameter
+
+
+#residuals in linear models 
+linmod1$residuals
+
+mean(linmod1$residuals)
+round(mean(linmod1$residuals), 7)
+
+sd(linmod1$residuals)
+
+#should be near a Gaussian distribution
+hist(linmod1$residuals)
+
+#should be close to a straight line 
+qqnorm(linmod1$residual)
+
+qqnorm(linmod1$residual)
+abline(0, 2.681866, col = 2)
+
+summary(linmod1)$sigma
+
+plot(trees$Height, linmod1$residuals, main = "residuals versus height")
+abline(h = 0, col = 2)
+
+#summary of investigation 
+linmod1 %>%
+  gg_diagnose(max.per.page = 1)
+
+
+#day 2 multiple linear regression 
+
+trees2 %>% ggplot(aes(Height,Volume))+
+  geom_point() +
+  labs(x = "Height in feet", y = "Volume in cubic feet") +
+  ggtitle("Height vs Volume") +
+  theme_classic()
+
+trees2 %>% ggplot(aes(Diameter,Volume))+
+  geom_point() +
+  labs(x = "Diameter in inches", y = "Volume in cubic feet") +
+  ggtitle("Diameter vs Volume") +
+  theme_classic()
+
+#add another variable
+linmod2<-lm(Volume~Height + Diameter,data=trees2)
+summary(linmod2)
+
+plot(trees2$Height,linmod2$residuals,main="Residuals vs height")
+
+plot(trees2$Diameter,linmod2$residuals,main="Residuals vs diameter")
+
+#using log to make linear equation
+trees2<- trees2 %>%
+  mutate(logheight = log(Height)) %>%
+  mutate(logvol = log(Volume)) %>%
+  mutate(logdiam = log(Diameter))
+
+trees2 %>% ggplot(aes(logheight,logvol))+
+  geom_point()+
+  labs(x = "log(height)", y = "log(volume)") +
+  ggtitle("Log volume vs log height") +
+  theme_classic()
+
+trees2 %>% ggplot(aes(logdiam,logvol))+
+  geom_point()+
+  labs(x = "log(diam)", y = "log(volume)") +
+  ggtitle("Log diameter vs log height") +
+  theme_classic()
+
+linmod3<-lm(logvol~logheight + logdiam,data=trees2)
+summary(linmod3)
+
+linmod3 %>%
+  gg_diagnose(max.per.page = 1)
+
+#prediction 
+
+predict(linmod3, newdata = data.frame(logheight = log(80),logdiam = log(10)))
+exp(predict(linmod3, newdata = data.frame(logheight = log(80),logdiam = log(10))))
