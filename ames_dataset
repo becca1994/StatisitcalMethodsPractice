@@ -1,0 +1,82 @@
+library("rio")
+library("magrittr")
+library("here")
+library("janitor")
+library("pROC")
+library("AmesHousing")
+library("tidyverse")
+library("rcompanion")
+library("lme4")
+library("merTools")
+
+ames <- make_ames()
+amesresidential <- ames %>% 
+  filter(!(ames$MS_Zoning %in% c("A_agr", "C_all", "I_all"))) %>%
+  droplevels()
+  
+mmod1 <- lmer(Sale_Price ~ (1|Neighborhood), data = amesresidential)
+mmod1
+
+nbhds <- ranef(mmod1)$Neighborhood
+nbhds
+
+hist(nbhds$`(Intercept)`, breaks = 10)
+
+mmod2 <- lmer(Sale_Price ~ Lot_Area + MS_Zoning + (1|Neighborhood),
+              data = amesresidential)
+mmod2
+
+plot(amesresidential$Lot_Area,mmod2@resp$wtres)
+
+plot(amesresidential$Lot_Area,mmod2@resp$wtres,xlim =c(0,50000))
+
+boxplot(mmod2@resp$wtres~amesresidential$MS_Zoning)
+
+
+mmod2res <- mmod2@resp$wtres
+mmod2df <- data.frame(amesresidential$MS_Zoning, mmod2res)
+names(mmod2df) <- c("MS_Zoning", "residual")
+mmod2df %>% 
+  group_by(MS_Zoning) %>% 
+  summarise(sd(residual))
+
+qqnorm(mmod2df$residual)
+
+overdisp_fun <- function(model) {
+  rdf <- df.residual(model)
+  rp <- residuals(model, type = "pearson")
+  Pearson.chisq <- sum(rp^2)
+  prat <- Pearson.chisq/rdf
+  pval <- pchisq(Pearson.chisq, df = rdf, lower.tail = FALSE)
+  c(chisq = Pearson.chisq, ratio = prat, rdf = rdf, p = pval)
+}
+
+overdisp_fun(mmod3)
+
+
+predict(mmod2,
+        newdata = data.frame(Lot_Area = 15000,
+                             MS_Zoning = "Residential_Low_Density",
+                             Neighborhood = "Gilbert"))
+
+predictInterval(mmod2, 
+                newdata = data.frame(Lot_Area = 15000,
+                                     MS_Zoning = "Residential_Low_Density",
+                                     Neighborhood = "Gilbert"),
+                include.resid.var = FALSE)
+predictInterval(mmod2, 
+                newdata = data.frame(Lot_Area = 15000,
+                                     MS_Zoning = "Residential_Low_Density",
+                                     Neighborhood = "Gilbert"),
+                include.resid.var = TRUE)
+
+predictInterval(mmod3, 
+                newdata = data.frame(appearances_overall = 15,
+                                     current_club = "Chelsea"),
+                include.resid.var = FALSE) %>% 
+  apply(2,exp)
+
+
+confint(mmod2)
+
+confint(mmod3)
