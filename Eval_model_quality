@@ -1,0 +1,79 @@
+library("MASS")
+library("sandwich")
+library("investr")
+library("car")
+library("rio")
+library("pROC")
+library("nnet")
+library("tidyverse")
+library("magrittr")
+library("here")
+library("janitor")
+library("readxl")
+library("rcompanion")
+library("ggcorrplot")
+library("ggplot2")
+library("rlang")
+library("corrr")
+library("effects")
+library("caret")
+
+trees2 <- trees %>%
+  mutate(Diameter = Girth) %>%
+  dplyr::select(Height, Diameter, Volume)
+
+trees2 <- trees2 %>%
+  mutate(logheight = log(Height)) %>%
+  mutate(logvol = log(Volume)) %>%
+  mutate(logdiam = log(Diameter))
+  
+  linmod3 <- lm(logvol ~ logheight + logdiam,
+              data = trees2)
+summary(linmod3)
+
+std.err<- sqrt(diag(vcovHC(linmod3, type = "HC0")))
+r.est <- cbind(Estimate = coef(linmod3), 
+               "Robust SE" = std.err,
+               "Pr(>|z|)" = 2 * pnorm(abs(coef(linmod3)/ std.err), 
+                                      lower.tail = FALSE),
+               LL = coef(linmod3) - 1.96 * std.err,
+               UL = coef(linmod3) + 1.96 * std.err)
+  
+Anova(lm(Diameter ~ Height, data = trees2))
+Anova(lm(logvol ~ logheight + logdiam, data = trees2))
+
+# r sqaured values 
+summary(lm(Diameter ~ Height, data = trees2))
+summary(lm(logvol ~ logheight, data = trees2))
+summary(lm(logvol ~ logheight + logdiam, data = trees2))
+
+# AIC linear models 
+# when AIC is lower this means a more expalantory model
+
+summary(glm(logvol ~ logheight, 
+            data = trees2, 
+            family = "gaussian"))
+summary(glm(logvol ~ logheight + logdiam,
+            data = trees2,
+            family = "gaussian"))
+
+# Cross-validation for models with numerical response
+
+set.seed(123)
+training.samples <- trees2$Diameter %>%
+  createDataPartition(p = 0.8, list = FALSE)
+
+train.data <- trees2[training.samples, ]
+test.data <- trees2[-training.samples, ]
+
+train.model <- lm(Diameter ~ Height, data = train.data)
+summary(train.model)
+
+predictions <- train.model %>% 
+  predict(test.data)
+data.frame( R2 = R2(predictions, test.data$Diameter),
+            RMSE = RMSE(predictions, test.data$Diameter),
+            MAE = MAE(predictions, test.data$Diameter))
+
+
+
